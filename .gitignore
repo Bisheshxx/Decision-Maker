@@ -1,0 +1,47 @@
+# Build outputs
+bin/
+obj/
+out/
+publish/
+TestResults/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Secrets / config
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.env
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+
+# NuGet
+*.nupkg
+packages/
+
+# OS files
+.DS_Store
+Thumbs.db
