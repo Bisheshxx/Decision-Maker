@@ -1,6 +1,7 @@
 using DecisionMaker.Account.LoginDto;
 using DecisionMaker.Dtos.Account;
 using DecisionMaker.Dtos.Error;
+using DecisionMaker.Dtos.Response;
 using DecisionMaker.Interfaces;
 using DecisionMaker.Models;
 using DecisionMaker.Settings;
@@ -37,14 +38,18 @@ namespace DecisionMaker.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(ApiResponse<object>.Fail(ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage), "ModelState is invalid"));
             }
             var user = await _userManager.Users.FirstOrDefaultAsync(x => x.Email == loginDto.Email);
             if (user == null)
-                return Unauthorized("Invalid Email!");
+                return Unauthorized(ApiResponse<object>.Fail("The User does not exist"));
+
             var result = await _signinManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
             if (!result.Succeeded)
-                return Unauthorized("Email Notfound or Password doesn't match!");
+                return Unauthorized(ApiResponse<object>.Fail("Email Notfound or Password doesn't match!"));
+
 
             var RefreshToken = new RefreshToken
             {
@@ -56,71 +61,54 @@ namespace DecisionMaker.Controllers
             user.RefreshTokens.Add(RefreshToken);
             await _userManager.UpdateAsync(user);
 
-            return Ok(
-                new NewUserDto
-                {
-                    User = new UserDto
-                    {
-                        Id = user.Id!,
-                        Name = user.Name!,
-                        Email = user.Email!,
-                    },
-                    Token = _tokenService.CreateToken(user),
-                    RefreshToken = RefreshToken.Token
-                }
-            );
+            var userDto = new UserDto
+            {
+                Id = user.Id!,
+                Name = user.Name!,
+                Email = user.Email!,
+            };
+            return Ok(ApiResponse<UserDto>.Ok(userDto, "Login successful"));
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto registerDto)
         {
-            try
+
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail(ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage), "ModelState is invalid"));
+
+            if (string.IsNullOrWhiteSpace(registerDto.Email))
+                return BadRequest(ApiResponse<object>.Fail("Email required"));
+
+            var existingUser = await _userManager.FindByEmailAsync(registerDto.Email);
+            if (existingUser != null)
+                return BadRequest(ApiResponse<object>.Fail("Email Already Exists!"));
+            var appUser = new AppUser
             {
-                if (!ModelState.IsValid)
-                    return BadRequest("Model State");
-                if (string.IsNullOrWhiteSpace(registerDto.Email))
-                    return BadRequest("Email required");
-                var existingUser = await _userManager.FindByEmailAsync(registerDto.Email);
-                if (existingUser != null)
-                    return BadRequest("Email Already Exists!");
-                var appUser = new AppUser
-                {
-                    Name = registerDto.Name,
-                    Email = registerDto.Email,
-                    UserName = Guid.NewGuid().ToString()
-                };
-                var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password);
-                if (createdUser.Succeeded)
-                {
-                    var emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
-
-                    var frontendUrl = _appSettings.FrontendUrl;
-                    var confirmationLink = $"{frontendUrl}/confirm-email?userId={appUser.Id}&token={Uri.EscapeDataString(emailToken)}";
-                    await _emailSender.SendEmailAsync(appUser.Email, "Confirm Your Email", $"<h3>Hello {appUser.Name}</h3><p>Please confirm your email by clicking this link:</p><a href='{confirmationLink}'>Confirm Email</a>");
-                    return Ok(new
-                    {
-                        message = "Email sent",
-                    });
-                }
-                else
-                {
-                    return StatusCode(500, createdUser.Errors);
-                }
-
-            }
-            catch (Exception e)
+                Name = registerDto.Name,
+                Email = registerDto.Email,
+                UserName = Guid.NewGuid().ToString()
+            };
+            var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password);
+            if (createdUser.Succeeded)
             {
-                var error = new ErrorResponse
-                {
-                    Message = e.Message,
-                    StackTrace = e.StackTrace
-                };
+                var emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
 
-                return StatusCode(500, error);
+                var frontendUrl = _appSettings.FrontendUrl;
+                var confirmationLink = $"{frontendUrl}/confirm-email?userId={appUser.Id}&token={Uri.EscapeDataString(emailToken)}";
+
+
+                await _emailSender.SendEmailAsync(appUser.Email, "Confirm Your Email", $"<h3>Hello {appUser.Name}</h3><p>Please confirm your email by clicking this link:</p><a href='{confirmationLink}'>Confirm Email</a>");
+
+                return Ok(ApiResponse<object>.Ok(null, "Email sent"));
             }
-
-
-
+            else
+            {
+                var errors = createdUser.Errors.Select(e => e.Description);
+                return BadRequest(ApiResponse<object>.Fail(errors, "Registration failed"));
+            }
         }
 
         [HttpPost("Refresh")]
@@ -169,36 +157,22 @@ namespace DecisionMaker.Controllers
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
         {
-            try
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+                return NotFound("User does not exist");
+            if (user.EmailConfirmed)
             {
-                var user = await _userManager.FindByIdAsync(userId);
-
-                if (user == null)
-                    return NotFound("User does not exist");
-                if (user.EmailConfirmed)
-                {
-                    return Conflict("Email has already been confirmed");
-                }
-                var result = await _userManager.ConfirmEmailAsync(user, token);
-                if (result.Succeeded)
-                {
-                    return Ok("Email has successfully been confirmed");
-                }
-                else
-                {
-                    return BadRequest("Email confirmation failed. The link may have expired or is invalid.");
-                }
-
+                return Conflict("Email has already been confirmed");
             }
-            catch (Exception e)
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+            if (result.Succeeded)
             {
-                var error = new ErrorResponse
-                {
-                    Message = e.Message,
-                    StackTrace = e.StackTrace
-
-                };
-                return StatusCode(500, error);
+                return Ok("Email has successfully been confirmed");
+            }
+            else
+            {
+                return BadRequest("Email confirmation failed. The link may have expired or is invalid.");
             }
         }
     }
