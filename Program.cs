@@ -5,6 +5,7 @@ using DecisionMaker.Service;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,40 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo()
+    {
+        Title = "Authentication for Decision Maker",
+        Version = "v1",
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+    {
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Please Enter a Token",
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        BearerFormat = "JWT",
+        Scheme = "bearer"
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new List<string>()
+        }
+    });
+
+});
+
 
 var app = builder.Build();
 
@@ -49,14 +84,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-
-
-// docker run -d \
-//   -p 5432:5432 \
-//   -e POSTGRES_USER=postgres \
-//   -e POSTGRES_PASSWORD=postgres \
-//   -e POSTGRES_DB=postgres \
-//   postgres
-
-
