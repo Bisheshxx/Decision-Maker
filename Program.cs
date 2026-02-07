@@ -1,5 +1,7 @@
 using DecisionMaker.Data;
+using DecisionMaker.Dtos.Response;
 using DecisionMaker.Interfaces;
+using DecisionMaker.Middleware;
 using DecisionMaker.Models;
 using DecisionMaker.Service;
 using DecisionMaker.Settings;
@@ -99,6 +101,18 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+app.UseExceptionHandler(appError =>
+{
+    appError.Run(async context =>
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+        var response = ApiResponse<object>.Fail("Internal server error");
+        await context.Response.WriteAsJsonAsync(response);
+    });
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -110,7 +124,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();
