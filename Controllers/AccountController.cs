@@ -146,8 +146,7 @@ namespace DecisionMaker.Controllers
             user.RefreshTokens.Remove(storeRefreshToken);
             var newRefreshToken = new RefreshToken
             {
-                Token = _tokenService.GenerateRefreshToken()
-                ,
+                Token = _tokenService.GenerateRefreshToken(),
                 Expires = DateTime.UtcNow.AddDays(7),
                 UserId = user.Id
             };
