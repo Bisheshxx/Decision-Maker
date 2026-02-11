@@ -10,7 +10,7 @@ using System.Security.Cryptography;
 
 
 
-namespace DecisionMaker.Service
+namespace DecisionMaker.Services
 {
     public class TokenService : ITokenService
     {

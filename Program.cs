@@ -1,9 +1,12 @@
 using DecisionMaker.Data;
 using DecisionMaker.Dtos.Response;
 using DecisionMaker.Interfaces;
+using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Middleware;
 using DecisionMaker.Models;
 using DecisionMaker.Service;
+using DecisionMaker.Services;
+using DecisionMaker.Services.Auth;
 using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -63,6 +66,7 @@ builder.Services.AddAuthentication(options =>
 });
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.AddSingleton<IEmailSender, EmailSender>();
+builder.Services.AddScoped<IAuthService, AuthServices>();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -108,7 +112,7 @@ app.UseExceptionHandler(appError =>
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
-        var response = ApiResponse<object>.Fail("Internal server error");
+        var response = ApiResponse<object>.Fail("Internal server error", ErrorType.ServerError);
         await context.Response.WriteAsJsonAsync(response);
     });
 });
