@@ -7,6 +7,8 @@ public class ApiResponse<T>
     public bool Success { get; set; }
     public string? Message { get; set; }
     public T? Data { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<string>? Errors { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -18,6 +20,8 @@ public class ApiResponse<T>
         Success = true,
         Data = data,
         Message = message,
+        Errors = null,
+        ErrorType = null
     };
 
     public static ApiResponse<T> Fail(
@@ -29,7 +33,8 @@ public class ApiResponse<T>
             Success = false,
             Errors = [error],
             ErrorType = type,
-            Message = message
+            Message = message,
+            Data = default
         };
 
     public static ApiResponse<T> Fail(
@@ -41,7 +46,8 @@ public class ApiResponse<T>
             Success = false,
             Errors = errors,
             ErrorType = type,
-            Message = message
+            Message = message,
+            Data = default
         };
 }
 
