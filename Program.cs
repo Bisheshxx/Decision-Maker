@@ -2,11 +2,13 @@ using DecisionMaker.Data;
 using DecisionMaker.Dtos.Response;
 using DecisionMaker.Interfaces;
 using DecisionMaker.Interfaces.Auth;
+using DecisionMaker.Interfaces.Decision;
 using DecisionMaker.Middleware;
 using DecisionMaker.Models;
 using DecisionMaker.Service;
 using DecisionMaker.Services;
 using DecisionMaker.Services.Auth;
+using DecisionMaker.Services.DecisionService;
 using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -74,6 +76,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.AddSingleton<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IAuthService, AuthServices>();
+builder.Services.AddScoped<IDecisionService, DecisionServices>();
 
 builder.Services.AddSwaggerGen(options =>
 {

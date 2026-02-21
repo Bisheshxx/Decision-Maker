@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DecisionMaker.Shared.Pagination.Dto;
 
 namespace DecisionMaker.Dtos.Response;
 
@@ -14,14 +15,17 @@ public class ApiResponse<T>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ErrorType? ErrorType { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PaginationMeta? Meta { get; set; }
 
-    public static ApiResponse<T> Ok(T? data, string message = "") => new()
+    public static ApiResponse<T> Ok(T? data, string message = "", PaginationMeta? meta = null) => new()
     {
         Success = true,
         Data = data,
         Message = message,
         Errors = null,
-        ErrorType = null
+        ErrorType = null,
+        Meta = meta
     };
 
     public static ApiResponse<T> Fail(
