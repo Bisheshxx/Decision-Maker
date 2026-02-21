@@ -48,7 +48,7 @@ namespace DecisionMaker.Controllers
             return result.ToIActionResult(this);
         }
 
-        [HttpPost("confirm-email")]
+        [HttpPost("confirm-email/{userId}")]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
         {
             var result = await _authService.ConfirmEmailAsync(userId, token);

@@ -2,10 +2,8 @@ using System.Security.Claims;
 using DecisionMaker.Dtos.Decision;
 using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces.Decision;
-using DecisionMaker.Services.DecisionService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 namespace DecisionMaker.Controllers;
 
 [Authorize]
@@ -38,7 +36,7 @@ public class DecisionController : ControllerBase
         return results.ToIActionResult(this);
     }
 
-    [HttpDelete]
+    [HttpDelete("{decisionId}")]
     public async Task<IActionResult> DeleteAsync(int decisionId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -47,7 +45,7 @@ public class DecisionController : ControllerBase
 
     }
 
-    [HttpPut("{id}")]
+    [HttpPut("{decisionId}")]
     public async Task<IActionResult> UpdateAsync(int id, CreateDecisionDto updateDecisionDto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
