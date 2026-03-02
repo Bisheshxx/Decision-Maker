@@ -10,5 +10,7 @@ namespace DecisionMaker.Models
         // Foreign key: Decision
         public int DecisionId { get; set; }
         public Decision? Decision { get; set; }      // Navigation property
+        public required string CreatedById { get; set; }
+        public AppUser? CreatedBy { get; set; }
     }
 }
