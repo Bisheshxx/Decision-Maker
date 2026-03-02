@@ -6,6 +6,7 @@ using DecisionMaker.Interfaces.Decision;
 using Microsoft.EntityFrameworkCore;
 using DecisionMaker.Shared.Pagination.Dto;
 using Microsoft.AspNetCore.Http.HttpResults;
+using DecisionMaker.Dtos.DecisionItem;
 
 namespace DecisionMaker.Services.DecisionService;
 
@@ -82,7 +83,7 @@ public class DecisionServices : IDecisionService
         {
             return ApiResponse<object>.Fail("Decision not Found.", ErrorType.NotFound);
         }
-        return ApiResponse<object>.Ok("Successfully Deleted Decision");
+        return ApiResponse<object>.Ok(null, "Successfully Deleted Decision");
 
     }
 
@@ -99,7 +100,32 @@ public class DecisionServices : IDecisionService
         decision.Description = createDecisionDto.Description;
         decision.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        return ApiResponse<object>.Ok("Decision updated Successfully");
+        return ApiResponse<object>.Ok(null, "Decision updated Successfully");
+    }
+
+    public async Task<ApiResponse<DecisionListResponseDto>> GetDecisionById(string userId, int id)
+    {
+        var query = _context.Decision;
+        var decision = await query.Where(d => d.Id == id && d.UserId == userId).Select(d => new DecisionListResponseDto
+        {
+            Id = d.Id,
+            Title = d.Title,
+            Description = d.Description,
+            CreatedAt = d.CreatedAt,
+            UpdatedAt = d.UpdatedAt,
+            DecisionItems = d.DecisionItems.Select(di => new PostDecisionItemResponseDto
+            {
+                Title = di.Title,
+                Id = di.Id,
+                DecisionId = di.DecisionId
+            }).ToList()
+        }).FirstOrDefaultAsync();
+
+        if (decision == null)
+        {
+            return ApiResponse<DecisionListResponseDto>.Fail("Decision not Found", ErrorType.NotFound);
+        }
+        return ApiResponse<DecisionListResponseDto>.Ok(decision, "Successfully Fetched Decision");
     }
 
 }

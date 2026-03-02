@@ -35,6 +35,13 @@ public class DecisionController : ControllerBase
         var results = await _decisionServices.GetDecisionsAsync(userId, page, pageSize);
         return results.ToIActionResult(this);
     }
+    [HttpGet("{decisionId}")]
+    public async Task<IActionResult> GetByIdAsync(int decisionId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var results = await _decisionServices.GetDecisionById(userId, decisionId);
+        return results.ToIActionResult(this);
+    }
 
     [HttpDelete("{decisionId}")]
     public async Task<IActionResult> DeleteAsync(int decisionId)

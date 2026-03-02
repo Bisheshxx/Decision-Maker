@@ -11,4 +11,6 @@ public interface IDecisionService
 
     Task<ApiResponse<object>> DeleteDecisionAsync(string userId, int decisionId);
     Task<ApiResponse<object>> UpdateDecisionAsync(string userId, int decisionId, CreateDecisionDto createDecisionDto);
+
+    Task<ApiResponse<DecisionListResponseDto>> GetDecisionById(string userId, int id);
 }
