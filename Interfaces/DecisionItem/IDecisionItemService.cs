@@ -6,9 +6,7 @@ namespace DecisionMaker.Interfaces.Decision;
 
 public interface IDecisionItemService
 {
-    Task<ApiResponse<PostDecisionItemResponseDto>> PostDecisionItemAsync(CreateDecisionItemDto createDecisionItemDto, string userId);
+    // Task<ApiResponse<object>> UpdateDecisionItemAsync(UpdateDecisionItemDto updateDecisionItemDto, string userId);
 
-    Task<ApiResponse<object>> UpdateDecisionItemAsync(UpdateDecisionItemDto updateDecisionItemDto, string userId);
-
-    Task<ApiResponse<object>> DeleteDecisionItemAsync(int decisionItemId, string userId);
+    // Task<ApiResponse<object>> DeleteDecisionItemAsync(int decisionItemId, string userId);
 }

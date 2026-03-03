@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DecisionMaker.Dtos.Decision;
+using DecisionMaker.Dtos.DecisionItem;
 using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces.Decision;
 using Microsoft.AspNetCore.Authorization;
@@ -52,12 +53,35 @@ public class DecisionController : ControllerBase
 
     }
 
-    [HttpPut("{decisionId}")]
+    [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAsync(int id, CreateDecisionDto updateDecisionDto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var results = await _decisionServices.UpdateDecisionAsync(userId, id, updateDecisionDto);
         return results.ToIActionResult(this);
+    }
+
+    [HttpPost("{id}/decision-item")]
+    public async Task<IActionResult> PostDecisionItemsAsync(CreateDecisionItemDto createDecisionItemDto, int id)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var result = await _decisionServices.PostDecisionItemAsync(createDecisionItemDto, userId, id);
+        return result.ToIActionResult(this);
+    }
+
+    [HttpPut("{id}/decision-item/{itemId}")]
+    public async Task<IActionResult> UpdateDecisionItemAsync(UpdateDecisionItemDto updateDecisionItemDto, int id, int itemId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var result = await _decisionServices.UpdateDecisionItemAsync(updateDecisionItemDto, userId, id, itemId);
+        return result.ToIActionResult(this);
+    }
+    [HttpDelete("{id}/decision-item/{itemId}")]
+    public async Task<IActionResult> DeleteDecisionItemAsync(int id, int itemId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var result = await _decisionServices.DeleteDecisionItemAsync(id, itemId, userId);
+        return result.ToIActionResult(this);
     }
 
 }

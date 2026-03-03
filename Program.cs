@@ -8,7 +8,6 @@ using DecisionMaker.Models;
 using DecisionMaker.Service;
 using DecisionMaker.Services;
 using DecisionMaker.Services.Auth;
-using DecisionMaker.Services.DecisionItemService;
 using DecisionMaker.Services.DecisionService;
 using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -78,7 +77,7 @@ builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSet
 builder.Services.AddSingleton<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IAuthService, AuthServices>();
 builder.Services.AddScoped<IDecisionService, DecisionServices>();
-builder.Services.AddScoped<IDecisionItemService, DecisionItemService>();
+// builder.Services.AddScoped<IDecisionItemService, DecisionItemService>();
 
 builder.Services.AddSwaggerGen(options =>
 {

@@ -127,5 +127,49 @@ public class DecisionServices : IDecisionService
         }
         return ApiResponse<DecisionListResponseDto>.Ok(decision, "Successfully Fetched Decision");
     }
+    public async Task<ApiResponse<PostDecisionItemResponseDto>> PostDecisionItemAsync(CreateDecisionItemDto createDecisionItemDto, string userId, int decisionId)
+    {
+        var decisionItem = new DecisionItem()
+        {
+            Title = createDecisionItemDto.Title,
+            DecisionId = decisionId,
+            CreatedById = userId
+        };
+        _context.DecisionItem.Add(decisionItem);
+        await _context.SaveChangesAsync();
+
+        var postDecisionItemResponseDto = new PostDecisionItemResponseDto
+        {
+            Title = decisionItem.Title,
+            Id = decisionItem.Id,
+            DecisionId = decisionItem.DecisionId
+        };
+
+        return ApiResponse<PostDecisionItemResponseDto>.Ok(postDecisionItemResponseDto, "Successfully created a decision item.");
+    }
+    public async Task<ApiResponse<object>> UpdateDecisionItemAsync(UpdateDecisionItemDto updateDecisionItemDto, string userId, int decisionId, int decisionItemId)
+    {
+
+        var query = _context.DecisionItem;
+        var decisionItem = await query.FirstOrDefaultAsync(d => d.Id == decisionItemId && d.DecisionId == decisionId && d.CreatedById == userId);
+        if (decisionItem == null)
+        {
+            return ApiResponse<object>.Fail("Decision item not found.", ErrorType.NotFound);
+        }
+
+        decisionItem.Title = updateDecisionItemDto.Title;
+        await _context.SaveChangesAsync();
+        return ApiResponse<object>.Ok(null, "Decision Item successfully updated");
+    }
+
+    public async Task<ApiResponse<object>> DeleteDecisionItemAsync(int id, int itemId, string userId)
+    {
+        var rowsAffected = await _context.DecisionItem.Where(d => d.Id == itemId && d.CreatedById == userId && d.DecisionId == id).ExecuteDeleteAsync();
+        if (rowsAffected == 0)
+        {
+            return ApiResponse<object>.Fail("Decision Item Not Found!", ErrorType.NotFound);
+        }
+        return ApiResponse<object>.Ok(null, "Successfully Deleted Decision Item!");
+    }
 
 }
