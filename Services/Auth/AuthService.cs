@@ -63,7 +63,7 @@ public class AuthServices : IAuthService
             RefreshToken = RefreshTokenGenerated.Token,
             Token = _tokenService.CreateToken(user)
         };
-        return ApiResponse<NewUserDto>.Ok(newUserDto, "Login Succesfull!");
+        return ApiResponse<NewUserDto>.Ok(newUserDto, "Login Successful!");
     }
 
     public async Task<ApiResponse<object>> RegisterAsync(RegisterDto registerDto)
@@ -137,8 +137,6 @@ public class AuthServices : IAuthService
             RefreshToken = newRefreshToken.Token
         };
         return ApiResponse<NewUserDto>.Ok(response, "Success");
-
-        // return ApiResponse<NewUserDto>.Ok()
     }
 
     public async Task<ApiResponse<object>> ConfirmEmailAsync(string userId, string token)

@@ -31,6 +31,16 @@ namespace DecisionMaker.Controllers
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
             var result = await _authService.LoginAsync(loginDto);
+
+            if (result.Success)
+            {
+                CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
+
+                return Ok(ApiResponse<LoginResponseDto>.Ok(new LoginResponseDto
+                {
+                    User = result.Data.User
+                }, "Login Successful!"));
+            }
             return result.ToIActionResult(this);
         }
 

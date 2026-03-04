@@ -43,30 +43,79 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-builder.Services.AddScoped<ITokenService, TokenService>();
-
-builder.Services.AddAuthentication(options =>
+// Configure Identity's cookie to NOT redirect API requests
+builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.DefaultAuthenticateScheme =
-    options.DefaultChallengeScheme =
-    options.DefaultForbidScheme =
-    options.DefaultScheme =
-    options.DefaultSignInScheme =
-    options.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+    options.Events.OnRedirect = context =>
     {
-        ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["JWT:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["JWT:Audience"],
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"] ?? throw new InvalidOperationException("JWT:SigningKey configuration is missing"))
-        )
+        // Don't redirect API requests - let JWT Bearer handle them
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            return Task.CompletedTask;
+        }
+        // Redirect non-API requests normally
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
     };
 });
+
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Cookies["access_token"];
+
+                if (!string.IsNullOrEmpty(token))
+                {
+                    context.Token = token;
+                    Console.WriteLine($"Token received from cookie: {token.Substring(0, Math.Min(20, token.Length))}...");
+                }
+                else
+                {
+                    Console.WriteLine("No access_token cookie found");
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                return context.Response.WriteAsJsonAsync(new { error = $"Unauthorized: {context.Exception.Message}" });
+            },
+            OnChallenge = context =>
+            {
+                // Return 401 instead of redirecting to login
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                return context.Response.WriteAsJsonAsync(new { error = "Unauthorized - Invalid or missing token" });
+            }
+        };
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["JWT:Issuer"],
+
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["JWT:Audience"],
+
+            ValidateIssuerSigningKey = true,
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"]!)),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -89,12 +138,10 @@ builder.Services.AddSwaggerGen(options =>
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
     {
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Please Enter a Token",
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        BearerFormat = "JWT",
-        Scheme = "bearer"
+        Name = "access_token",
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Cookie,
+        Description = "Authentication via HttpOnly cookie"
     });
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
@@ -107,7 +154,8 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new List<string>()
+            Array.Empty<string>()
+
         }
     });
 
@@ -134,12 +182,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseMiddleware<ExceptionMiddleware>();
 
-app.UseHttpsRedirection();
+// Only use HTTPS redirection in production since we're running on HTTP in development
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();

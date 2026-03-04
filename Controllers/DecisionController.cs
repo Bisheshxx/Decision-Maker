@@ -3,11 +3,12 @@ using DecisionMaker.Dtos.Decision;
 using DecisionMaker.Dtos.DecisionItem;
 using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces.Decision;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace DecisionMaker.Controllers;
 
-[Authorize]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [Route("api/decisions")]
 [ApiController]
 public class DecisionController : ControllerBase
@@ -26,6 +27,7 @@ public class DecisionController : ControllerBase
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var results = await _decisionServices.PostDecisionAsync(userId, dto);
+
         return results.ToIActionResult(this);
     }
 

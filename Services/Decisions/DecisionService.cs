@@ -20,6 +20,10 @@ public class DecisionServices : IDecisionService
 
     public async Task<ApiResponse<DecisionDto>> PostDecisionAsync(string userId, CreateDecisionDto dto)
     {
+        if (userId == null)
+        {
+            return ApiResponse<DecisionDto>.Fail("You need to login", ErrorType.Unauthorized);
+        }
         if (string.IsNullOrWhiteSpace(dto.Title))
         {
             return ApiResponse<DecisionDto>.Fail("Title is required",
@@ -52,6 +56,11 @@ public class DecisionServices : IDecisionService
 
     public async Task<ApiResponse<IEnumerable<DecisionListDto>>> GetDecisionsAsync(string userId, int page, int pageSize)
     {
+        Console.WriteLine("MOther fucker", userId);
+        if (userId == null)
+        {
+            return ApiResponse<IEnumerable<DecisionListDto>>.Fail("You need to login", ErrorType.Unauthorized);
+        }
         if (page <= 0)
             page = 1;
         if (pageSize <= 0)
