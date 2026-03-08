@@ -29,7 +29,6 @@ public class DecisionServices : IDecisionService
             return ApiResponse<DecisionDto>.Fail("Title is required",
                 ErrorType.Validation);
         }
-
         var decision = new Decision
         {
             Title = dto.Title,
@@ -49,14 +48,13 @@ public class DecisionServices : IDecisionService
             Description = decision.Description,
             CreatedAt = decision.CreatedAt,
             UpdatedAt = decision.UpdatedAt,
-            // UserId = userId
+            UserId = userId
         };
         return ApiResponse<DecisionDto>.Ok(createDecision, "Added a New Decision Successfully");
     }
 
     public async Task<ApiResponse<IEnumerable<DecisionListDto>>> GetDecisionsAsync(string userId, int page, int pageSize)
     {
-        Console.WriteLine("MOther fucker", userId);
         if (userId == null)
         {
             return ApiResponse<IEnumerable<DecisionListDto>>.Fail("You need to login", ErrorType.Unauthorized);

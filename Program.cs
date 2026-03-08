@@ -1,5 +1,6 @@
 using DecisionMaker.Data;
 using DecisionMaker.Dtos.Response;
+using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces;
 using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Interfaces.Decision;
@@ -21,7 +22,6 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -36,9 +36,9 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
-    options.Password.RequireLowercase = false;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
@@ -46,11 +46,25 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 // Configure Identity's cookie to NOT redirect API requests
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Events.OnRedirect = context =>
+    options.Events.OnRedirectToLogin = context =>
     {
         // Don't redirect API requests - let JWT Bearer handle them
         if (context.Request.Path.StartsWithSegments("/api"))
         {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+        // Redirect non-API requests normally
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        // Don't redirect API requests
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
         }
         // Redirect non-API requests normally
@@ -61,15 +75,21 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication(options =>
+{
+    // Set JWT Bearer as the default scheme for API authentication
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
     .AddJwtBearer(options =>
     {
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context =>
+            OnMessageReceived = async context =>
             {
                 var token = context.Request.Cookies["access_token"];
-
+                Console.WriteLine("this shit is being hit");
                 if (!string.IsNullOrEmpty(token))
                 {
                     context.Token = token;
@@ -77,17 +97,63 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
                 else
                 {
-                    Console.WriteLine("No access_token cookie found");
+                    Console.WriteLine("No access_token cookie found, attempting refresh...");
+
+                    // Try to refresh token if we have a refresh_token cookie
+                    var refreshToken = context.Request.Cookies["refresh_token"];
+                    if (!string.IsNullOrEmpty(refreshToken))
+                    {
+                        var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
+                        var refreshResult = await authService.RefreshAsync(new DecisionMaker.Dtos.Account.RefreshDto { RefreshToken = refreshToken });
+
+                        if (refreshResult.Success && refreshResult.Data != null)
+                        {
+                            Console.WriteLine("Token refreshed successfully in OnMessageReceived");
+
+                            // Set new cookies
+                            CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!);
+                            CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!);
+
+                            // Use the new token for this request
+                            context.Token = refreshResult.Data.Token;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Token refresh failed in OnMessageReceived");
+                        }
+                    }
                 }
-                return Task.CompletedTask;
             },
-            OnAuthenticationFailed = context =>
+            OnAuthenticationFailed = async context =>
             {
-                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                // Try to refresh token if we have a refresh_token cookie
+                var refreshToken = context.Request.Cookies["refresh_token"];
+                if (!string.IsNullOrEmpty(refreshToken))
+                {
+                    var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
+
+                    var refreshResult = await authService.RefreshAsync(new DecisionMaker.Dtos.Account.RefreshDto { RefreshToken = refreshToken });
+
+                    if (refreshResult.Success && refreshResult.Data != null)
+                    {
+                        Console.WriteLine("Token refreshed successfully, setting new cookies");
+
+                        // Set new cookies for next request
+                        CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!);
+                        CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!);
+
+                        // Can't fix current request, but cookies are set for next request
+                        context.NoResult();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsJsonAsync(new { error = "Token expired, refreshed - please retry", tokenRefreshed = true });
+                        return;
+                    }
+                }
                 context.NoResult();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json";
-                return context.Response.WriteAsJsonAsync(new { error = $"Unauthorized: {context.Exception.Message}" });
+                await context.Response.WriteAsJsonAsync(new { error = $"Unauthorized: {context.Exception.Message}" });
             },
             OnChallenge = context =>
             {
@@ -115,6 +181,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+    }).AddGoogle(option =>
+    {
+        option.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
+        option.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+        option.CallbackPath = "/signin-google";
     });
 
 builder.Services.ConfigureHttpJsonOptions(options =>

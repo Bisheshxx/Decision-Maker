@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DecisionMaker.Account.LoginDto;
 using DecisionMaker.Dtos.Account;
 using DecisionMaker.Dtos.Response;
@@ -5,6 +6,7 @@ using DecisionMaker.Interfaces;
 using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Models;
 using DecisionMaker.Settings;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -161,6 +163,75 @@ public class AuthServices : IAuthService
         {
             return ApiResponse<object>.Fail("Email confirmation failed. The link may have expired or is invalid", ErrorType.Validation);
         }
+    }
+
+    public async Task<ApiResponse<object>> LogoutAsync(string refresh_token)
+    {
+        if (string.IsNullOrEmpty(refresh_token))
+        {
+            return ApiResponse<object>.Fail("You are already logged out", ErrorType.Unauthorized);
+        }
+        var user = await _userManager.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(r => r.RefreshTokens.Any(t => t.Token == refresh_token));
+        if (user == null)
+        {
+            return ApiResponse<object>.Fail("You are already logged out", ErrorType.Unauthorized);
+        }
+        var tokenToRemove = user.RefreshTokens.SingleOrDefault(t => t.Token == refresh_token);
+        if (tokenToRemove != null)
+        {
+            user.RefreshTokens.Remove(tokenToRemove);
+            await _userManager.UpdateAsync(user);
+        }
+        return ApiResponse<object>.Ok("Logged out Successfully");
+    }
+
+    public AuthenticationProperties ConfigureExternalAuth(string provider, string redirectUrl)
+    {
+        return _signinManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+    }
+
+    public async Task<ApiResponse<NewUserDto>> HandleGoogleLoginAsync(HttpResponse response)
+    {
+        var info = await _signinManager.GetExternalLoginInfoAsync();
+        if (info == null)
+        {
+            return ApiResponse<NewUserDto>.Fail("Google Login Fail", ErrorType.ServerError);
+        }
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
+        var user = await _userManager.FindByEmailAsync(email!);
+        var givenName = info.Principal.FindFirstValue(ClaimTypes.GivenName);
+        var surName = info.Principal.FindFirstValue(ClaimTypes.Surname);
+        if (user == null)
+        {
+            user = new AppUser
+            {
+                Email = email,
+                Name = $"{givenName} {surName}",
+                UserName = email,
+                EmailConfirmed = true
+            };
+            await _userManager.CreateAsync(user);
+            await _userManager.AddLoginAsync(user, info);
+        }
+        var token = _tokenService.CreateToken(user);
+        var RefreshTokenGenerated = new RefreshToken
+        {
+            Token = _tokenService.GenerateRefreshToken(),
+            Expires = DateTime.UtcNow.AddDays(7),
+            UserId = user.Id
+        };
+        var res = new NewUserDto
+        {
+            User = new UserDto
+            {
+                Id = user.Id!,
+                Name = user.Name!,
+                Email = user.Email!,
+            },
+            Token = token,
+            RefreshToken = RefreshTokenGenerated.Token
+        };
+        return ApiResponse<NewUserDto>.Ok(res, "Login Successful!");
     }
 
 }

@@ -3,15 +3,14 @@ using DecisionMaker.Dtos.Decision;
 using DecisionMaker.Dtos.DecisionItem;
 using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces.Decision;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace DecisionMaker.Controllers;
 
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+[Authorize]
 [Route("api/decisions")]
 [ApiController]
-public class DecisionController : ControllerBase
+public class DecisionController : BaseApiController
 {
     private readonly IDecisionService _decisionServices;
 
@@ -25,6 +24,10 @@ public class DecisionController : ControllerBase
 
     public async Task<IActionResult> PostAsync(CreateDecisionDto dto)
     {
+        if (!ModelState.IsValid)
+        {
+            return ValidationErrorResponse<CreateDecisionDto>();
+        }
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var results = await _decisionServices.PostDecisionAsync(userId, dto);
 
@@ -58,6 +61,10 @@ public class DecisionController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAsync(int id, CreateDecisionDto updateDecisionDto)
     {
+        if (!ModelState.IsValid)
+        {
+            return ValidationErrorResponse<CreateDecisionDto>();
+        }
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var results = await _decisionServices.UpdateDecisionAsync(userId, id, updateDecisionDto);
         return results.ToIActionResult(this);
@@ -66,6 +73,10 @@ public class DecisionController : ControllerBase
     [HttpPost("{id}/decision-item")]
     public async Task<IActionResult> PostDecisionItemsAsync(CreateDecisionItemDto createDecisionItemDto, int id)
     {
+        if (!ModelState.IsValid)
+        {
+            return ValidationErrorResponse<CreateDecisionDto>();
+        }
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var result = await _decisionServices.PostDecisionItemAsync(createDecisionItemDto, userId, id);
         return result.ToIActionResult(this);

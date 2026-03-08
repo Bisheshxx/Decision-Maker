@@ -7,6 +7,8 @@ using DecisionMaker.Interfaces;
 using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Models;
 using DecisionMaker.Settings;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.CodeAnalysis.Options;
@@ -18,7 +20,7 @@ namespace DecisionMaker.Controllers
 {
     [Route("api/accounts")]
     [ApiController]
-    public class AccountController : ControllerBase
+    public class AccountController : BaseApiController
     {
         private readonly IAuthService _authService;
 
@@ -30,12 +32,15 @@ namespace DecisionMaker.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
-            var result = await _authService.LoginAsync(loginDto);
+            if (!ModelState.IsValid)
+            {
+                return ValidationErrorResponse<LoginResponseDto>();
+            }
 
+            var result = await _authService.LoginAsync(loginDto);
             if (result.Success)
             {
                 CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
-
                 return Ok(ApiResponse<LoginResponseDto>.Ok(new LoginResponseDto
                 {
                     User = result.Data.User
@@ -47,6 +52,10 @@ namespace DecisionMaker.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto registerDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return ValidationErrorResponse<LoginResponseDto>();
+            }
             var result = await _authService.RegisterAsync(registerDto);
             return result.ToIActionResult(this);
         }
@@ -63,6 +72,52 @@ namespace DecisionMaker.Controllers
         {
             var result = await _authService.ConfirmEmailAsync(userId, token);
             return result.ToIActionResult(this);
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var refresh_token = Request.Cookies["refresh_token"];
+            var result = await _authService.LogoutAsync(refresh_token!);
+            if (result.Success)
+            {
+                CookieHelper.RemoveAuthCookies(Response);
+            }
+            return result.ToIActionResult(this);
+        }
+
+        [HttpGet("google-login")]
+        public IActionResult GoogleLogin(string? returnUrl = "/")
+        {
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = "/auth/google-response"
+            };
+
+            properties.Items["returnUrl"] = returnUrl ?? "/";
+            return Challenge(properties, GoogleDefaults.AuthenticationScheme);
+        }
+        [HttpGet("google-response")]
+        public async Task<IActionResult> GoogleResponse()
+        {
+            var authenticateResult = await HttpContext.AuthenticateAsync();
+            var returnUrl = authenticateResult.Properties?.Items["returnUrl"] ?? "/";
+
+            if (!Url.IsLocalUrl(returnUrl))
+                returnUrl = "/";
+
+            var result = await _authService.HandleGoogleLoginAsync(Response);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
+
+            return Ok(ApiResponse<OAuthLoginDto>.Ok(new OAuthLoginDto
+            {
+                User = result.Data.User,
+                RedirectUrl = returnUrl
+            }, "Login Successful!"));
         }
     }
 }
