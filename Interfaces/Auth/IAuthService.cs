@@ -12,7 +12,12 @@ public interface IAuthService
     Task<ApiResponse<NewUserDto>> RefreshAsync(RefreshDto refreshDto);
     Task<ApiResponse<object>> ConfirmEmailAsync(string userId, string token);
     Task<ApiResponse<object>> LogoutAsync(string refresh_token);
-    AuthenticationProperties ConfigureExternalAuth(string provider, string redirectUrl);
+    // AuthenticationProperties ConfigureExternalAuth(string provider, string redirectUrl);
+    AuthenticationProperties ConfigureGoogleLogin(string redirectUrl);
+
     Task<ApiResponse<NewUserDto>> HandleGoogleLoginAsync(HttpResponse response);
+    Task<ApiResponse<UserDto>> GetProfileAsync(string id);
+    Task<ApiResponse<UserDto>> UpdateProfile(string id, UpdateUserDto updateUserDto);
+
 
 }

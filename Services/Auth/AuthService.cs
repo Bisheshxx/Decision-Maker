@@ -7,6 +7,8 @@ using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Models;
 using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -63,7 +65,7 @@ public class AuthServices : IAuthService
         {
             User = userDto,
             RefreshToken = RefreshTokenGenerated.Token,
-            Token = _tokenService.CreateToken(user)
+            Token = _tokenService.CreateToken(user),
         };
         return ApiResponse<NewUserDto>.Ok(newUserDto, "Login Successful!");
     }
@@ -81,7 +83,8 @@ public class AuthServices : IAuthService
         {
             Email = registerDto.Email,
             Name = registerDto.Name,
-            UserName = registerDto.Email
+            UserName = registerDto.Email,
+            ProfilePictureUrl = ""
         };
 
         var result = await _userManager.CreateAsync(user, registerDto.Password);
@@ -185,9 +188,11 @@ public class AuthServices : IAuthService
         return ApiResponse<object>.Ok("Logged out Successfully");
     }
 
-    public AuthenticationProperties ConfigureExternalAuth(string provider, string redirectUrl)
+    public AuthenticationProperties ConfigureGoogleLogin(string redirectUrl)
     {
-        return _signinManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+        return _signinManager.ConfigureExternalAuthenticationProperties(
+            GoogleDefaults.AuthenticationScheme,
+            redirectUrl);
     }
 
     public async Task<ApiResponse<NewUserDto>> HandleGoogleLoginAsync(HttpResponse response)
@@ -201,6 +206,9 @@ public class AuthServices : IAuthService
         var user = await _userManager.FindByEmailAsync(email!);
         var givenName = info.Principal.FindFirstValue(ClaimTypes.GivenName);
         var surName = info.Principal.FindFirstValue(ClaimTypes.Surname);
+        // var picture = info.Principal.FindFirst("picture")?.Value;
+        var picture = info.Principal.FindFirstValue("picture");
+        var returnUrl = info.AuthenticationProperties?.Items["returnUrl"] ?? "/";
         if (user == null)
         {
             user = new AppUser
@@ -208,10 +216,11 @@ public class AuthServices : IAuthService
                 Email = email,
                 Name = $"{givenName} {surName}",
                 UserName = email,
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                ProfilePictureUrl = picture
             };
             await _userManager.CreateAsync(user);
-            await _userManager.AddLoginAsync(user, info);
+            await _userManager.AddLoginAsync(user, info!);
         }
         var token = _tokenService.CreateToken(user);
         var RefreshTokenGenerated = new RefreshToken
@@ -227,11 +236,88 @@ public class AuthServices : IAuthService
                 Id = user.Id!,
                 Name = user.Name!,
                 Email = user.Email!,
+                ProfilePictureUrl = user.ProfilePictureUrl
             },
             Token = token,
-            RefreshToken = RefreshTokenGenerated.Token
+            RefreshToken = RefreshTokenGenerated.Token,
+            RedirectUrl = returnUrl
         };
         return ApiResponse<NewUserDto>.Ok(res, "Login Successful!");
+    }
+    public async Task<ApiResponse<UserDto>> GetProfileAsync(string id)
+    {
+        if (id == null)
+        {
+            return ApiResponse<UserDto>.Fail("User not authenticated", ErrorType.Unauthorized);
+        }
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+        {
+            return ApiResponse<UserDto>.Fail("User does not exist", ErrorType.NotFound);
+        }
+        var userData = new UserDto
+        {
+            Id = user.Id,
+            Name = user.Name ?? string.Empty,
+            Email = user.Email ?? string.Empty,
+            ProfilePictureUrl = user.ProfilePictureUrl
+        };
+        return ApiResponse<UserDto>.Ok(userData, "Fetched User Data Successfully");
+
+    }
+    public async Task<ApiResponse<UserDto>> UpdateProfile(string id, UpdateUserDto updateUserDto)
+    {
+        if (id == null)
+        {
+            return ApiResponse<UserDto>.Fail("User unauthorized", ErrorType.Unauthorized);
+        }
+        bool updated = false;
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+        {
+            return ApiResponse<UserDto>.Fail("User unauthorized", ErrorType.Unauthorized);
+        }
+        if (!string.IsNullOrWhiteSpace(updateUserDto.Name))
+        {
+            if (updateUserDto.Name.Length > 50)
+            {
+                return ApiResponse<UserDto>.Fail(
+                    "Name cannot exceed 50 characters",
+                    ErrorType.Validation);
+            }
+
+            if (updateUserDto.Name != user.Name)
+            {
+                user.Name = updateUserDto.Name;
+                updated = true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(updateUserDto.ProfilePictureUrl))
+        {
+            if (updateUserDto.ProfilePictureUrl != user.ProfilePictureUrl)
+            {
+                user.ProfilePictureUrl = updateUserDto.ProfilePictureUrl;
+                updated = true;
+            }
+        }
+        if (updated)
+        {
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                return ApiResponse<UserDto>.Fail("Update failed!", ErrorType.ServerError);
+            }
+        }
+        var userDto = new UserDto
+        {
+            Id = user.Id,
+            Name = user.Name ?? "",
+            Email = user.Email ?? "",
+            ProfilePictureUrl = user.ProfilePictureUrl,
+        };
+
+        return ApiResponse<UserDto>.Ok(userDto, "Profile updated successfully");
     }
 
 }

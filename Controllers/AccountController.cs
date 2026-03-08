@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DecisionMaker.Account.LoginDto;
 using DecisionMaker.Dtos.Account;
 using DecisionMaker.Dtos.Error;
@@ -8,6 +9,7 @@ using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Models;
 using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +40,7 @@ namespace DecisionMaker.Controllers
             }
 
             var result = await _authService.LoginAsync(loginDto);
+            Console.WriteLine(result);
             if (result.Success)
             {
                 CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
@@ -87,37 +90,44 @@ namespace DecisionMaker.Controllers
         }
 
         [HttpGet("google-login")]
-        public IActionResult GoogleLogin(string? returnUrl = "/")
+        public IActionResult GoogleLogin(string returnUrl)
         {
-            var properties = new AuthenticationProperties
-            {
-                RedirectUri = "/auth/google-response"
-            };
-
+            var redirectUrl = Url.Action(nameof(GoogleResponse));
+            var properties = _authService.ConfigureGoogleLogin(redirectUrl!);
             properties.Items["returnUrl"] = returnUrl ?? "/";
+
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
         [HttpGet("google-response")]
         public async Task<IActionResult> GoogleResponse()
         {
-            var authenticateResult = await HttpContext.AuthenticateAsync();
-            var returnUrl = authenticateResult.Properties?.Items["returnUrl"] ?? "/";
-
-            if (!Url.IsLocalUrl(returnUrl))
-                returnUrl = "/";
-
             var result = await _authService.HandleGoogleLoginAsync(Response);
-
             if (!result.Success)
                 return BadRequest(result.Message);
 
             CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
-
-            return Ok(ApiResponse<OAuthLoginDto>.Ok(new OAuthLoginDto
-            {
-                User = result.Data.User,
-                RedirectUrl = returnUrl
-            }, "Login Successful!"));
+            return Redirect(result.Data.RedirectUrl ?? "/");
+        }
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProfile(string id)
+        {
+            var userId = id ?? User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var result = await _authService.GetProfileAsync(userId);
+            return result.ToIActionResult(this);
+        }
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var result = await _authService.GetProfileAsync(userId);
+            return result.ToIActionResult(this);
+        }
+        [HttpPut]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto updateUserDto)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var result = await _authService.UpdateProfile(userId, updateUserDto);
+            return result.ToIActionResult(this);
         }
     }
 }

@@ -7,5 +7,6 @@ namespace DecisionMaker.Dtos.Account
         public required string Id { set; get; }
         public required string Name { set; get; }
         public required string Email { set; get; }
+        public string? ProfilePictureUrl { get; set; }
     }
 }

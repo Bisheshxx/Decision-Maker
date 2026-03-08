@@ -11,6 +11,7 @@ using DecisionMaker.Services;
 using DecisionMaker.Services.Auth;
 using DecisionMaker.Services.DecisionService;
 using DecisionMaker.Settings;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -74,6 +75,10 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddScoped<ITokenService, TokenService>();
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+Console.WriteLine($"Google Client ID: {googleClientId}");
+Console.WriteLine($"Google Client Secret: {googleClientSecret}");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -89,7 +94,6 @@ builder.Services.AddAuthentication(options =>
             OnMessageReceived = async context =>
             {
                 var token = context.Request.Cookies["access_token"];
-                Console.WriteLine("this shit is being hit");
                 if (!string.IsNullOrEmpty(token))
                 {
                     context.Token = token;
@@ -97,8 +101,6 @@ builder.Services.AddAuthentication(options =>
                 }
                 else
                 {
-                    Console.WriteLine("No access_token cookie found, attempting refresh...");
-
                     // Try to refresh token if we have a refresh_token cookie
                     var refreshToken = context.Request.Cookies["refresh_token"];
                     if (!string.IsNullOrEmpty(refreshToken))
@@ -108,8 +110,6 @@ builder.Services.AddAuthentication(options =>
 
                         if (refreshResult.Success && refreshResult.Data != null)
                         {
-                            Console.WriteLine("Token refreshed successfully in OnMessageReceived");
-
                             // Set new cookies
                             CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!);
                             CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!);
@@ -185,8 +185,9 @@ builder.Services.AddAuthentication(options =>
     {
         option.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
         option.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
-        option.CallbackPath = "/signin-google";
-    });
+        option.Scope.Add("profile");
+        option.ClaimActions.MapJsonKey("picture", "picture");
+    }).AddCookie();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {

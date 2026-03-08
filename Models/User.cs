@@ -8,6 +8,8 @@ namespace DecisionMaker.Models
     public class AppUser : IdentityUser
     {
         public string? Name { get; set; }
+        public string? ProfilePictureUrl { get; set; }
+
         // Navigation property: One User can have many Decisions
         public List<Decision> Decisions { get; set; } = new List<Decision>();
         public List<RefreshToken> RefreshTokens { get; set; } = new();
