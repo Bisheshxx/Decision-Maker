@@ -40,13 +40,15 @@ namespace DecisionMaker.Controllers
             }
 
             var result = await _authService.LoginAsync(loginDto);
-            Console.WriteLine(result);
             if (result.Success)
             {
                 CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
-                return Ok(ApiResponse<LoginResponseDto>.Ok(new LoginResponseDto
+                return Ok(ApiResponse<UserDto>.Ok(new UserDto
                 {
-                    User = result.Data.User
+                    Id = result.Data.User.Id,
+                    Name = result.Data.User.Name,
+                    Email = result.Data.User.Email,
+                    ProfilePictureUrl = result.Data.User.ProfilePictureUrl,
                 }, "Login Successful!"));
             }
             return result.ToIActionResult(this);
@@ -70,7 +72,7 @@ namespace DecisionMaker.Controllers
             return result.ToIActionResult(this);
         }
 
-        [HttpPost("confirm-email/{userId}")]
+        [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
         {
             var result = await _authService.ConfirmEmailAsync(userId, token);

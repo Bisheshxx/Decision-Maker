@@ -29,9 +29,9 @@ public class ApiResponse<T>
     };
 
     public static ApiResponse<T> Fail(
-        string error,
+        string message,
         ErrorType type,
-        string message = "")
+        string error = "")
         => new()
         {
             Success = false,

@@ -14,6 +14,7 @@ using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -199,7 +200,17 @@ builder.Services.AddSingleton<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IAuthService, AuthServices>();
 builder.Services.AddScoped<IDecisionService, DecisionServices>();
 // builder.Services.AddScoped<IDecisionItemService, DecisionItemService>();
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:3000")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+});
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo()
@@ -233,6 +244,25 @@ builder.Services.AddSwaggerGen(options =>
 
 });
 
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => e.ErrorMessage)
+            .ToList();
+
+        var response = ApiResponse<object>.Fail(
+            errors,
+            ErrorType.Validation,
+            "Validation failed"
+        );
+
+        return new BadRequestObjectResult(response);
+    };
+});
+
 
 var app = builder.Build();
 
@@ -254,6 +284,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors("AllowFrontend");
 app.UseMiddleware<ExceptionMiddleware>();
 
 // Only use HTTPS redirection in production since we're running on HTTP in development

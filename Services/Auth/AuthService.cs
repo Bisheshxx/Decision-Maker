@@ -38,13 +38,13 @@ public class AuthServices : IAuthService
 
         if (user == null)
         {
-            return ApiResponse<NewUserDto>.Fail("User does not exist", ErrorType.Unauthorized);
+            return ApiResponse<NewUserDto>.Fail("User does not exist", ErrorType.Unauthorized, "User does not exist");
         }
 
         var result = await _signinManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
         if (!result.Succeeded)
         {
-            return ApiResponse<NewUserDto>.Fail("Incorrect Email or Password", ErrorType.Unauthorized);
+            return ApiResponse<NewUserDto>.Fail("Incorrect Email or Password", ErrorType.Unauthorized, "Incorrect Email or Password");
         }
         var RefreshTokenGenerated = new RefreshToken
         {
@@ -97,7 +97,7 @@ public class AuthServices : IAuthService
         var link = $"{_appSettings.FrontendUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
         await _emailSender.SendEmailAsync(user.Email!, "Confirm Email", $"Click <a href='{link}'>here</a> to confirm email");
-        return ApiResponse<object>.Ok("Confirmation Email has been sent!");
+        return ApiResponse<object>.Ok(null, "Confirmation Email has been sent!");
     }
 
     public async Task<ApiResponse<NewUserDto>> RefreshAsync(RefreshDto refreshDto)
@@ -160,7 +160,7 @@ public class AuthServices : IAuthService
         var result = await _userManager.ConfirmEmailAsync(user, token);
         if (result.Succeeded)
         {
-            return ApiResponse<object>.Ok("Email has been successfully confirmed");
+            return ApiResponse<object>.Ok(null, "Email has been confirmed");
         }
         else
         {
