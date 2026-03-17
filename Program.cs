@@ -78,8 +78,6 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<ITokenService, TokenService>();
 var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
 var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-Console.WriteLine($"Google Client ID: {googleClientId}");
-Console.WriteLine($"Google Client Secret: {googleClientSecret}");
 
 builder.Services.AddAuthentication(options =>
 {

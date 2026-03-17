@@ -9,7 +9,7 @@ public interface IDecisionService
 {
 
     Task<ApiResponse<DecisionDto>> PostDecisionAsync(string userId, CreateDecisionDto dto);
-    Task<ApiResponse<IEnumerable<DecisionListDto>>> GetDecisionsAsync(string userId, int page, int pageSize);
+    Task<ApiResponse<IEnumerable<DecisionListDto>>> GetDecisionsAsync(string userId, int page, int pageSize, string searchTerm);
 
     Task<ApiResponse<object>> DeleteDecisionAsync(string userId, int decisionId);
     Task<ApiResponse<object>> UpdateDecisionAsync(string userId, int decisionId, CreateDecisionDto createDecisionDto);

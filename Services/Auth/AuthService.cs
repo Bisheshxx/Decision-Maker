@@ -185,7 +185,7 @@ public class AuthServices : IAuthService
             user.RefreshTokens.Remove(tokenToRemove);
             await _userManager.UpdateAsync(user);
         }
-        return ApiResponse<object>.Ok("Logged out Successfully");
+        return ApiResponse<object>.Ok(null, "Logged out Successfully");
     }
 
     public AuthenticationProperties ConfigureGoogleLogin(string redirectUrl)

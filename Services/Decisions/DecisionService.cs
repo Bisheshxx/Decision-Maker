@@ -53,7 +53,7 @@ public class DecisionServices : IDecisionService
         return ApiResponse<DecisionDto>.Ok(createDecision, "Added a New Decision Successfully");
     }
 
-    public async Task<ApiResponse<IEnumerable<DecisionListDto>>> GetDecisionsAsync(string userId, int page, int pageSize)
+    public async Task<ApiResponse<IEnumerable<DecisionListDto>>> GetDecisionsAsync(string userId, int page, int pageSize, string searchTerm)
     {
         if (userId == null)
         {
@@ -66,6 +66,12 @@ public class DecisionServices : IDecisionService
         if (pageSize >= 50)
             pageSize = 50;
         var query = _context.Decision.Where(d => d.UserId == userId).OrderByDescending(o => o.CreatedAt);
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(d => d.UserId == userId && ((d.Title != null && d.Title.ToLower().Contains(searchTerm.ToLower())) ||
+        (d.Description != null && d.Description.ToLower().Contains(searchTerm.ToLower())))).OrderByDescending(o => o.CreatedAt);
+        }
 
         var totalCount = await query.CountAsync();
 

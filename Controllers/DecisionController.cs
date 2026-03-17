@@ -35,10 +35,10 @@ public class DecisionController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAsync(int page = 1, int pageSize = 10)
+    public async Task<IActionResult> GetAsync(int page = 1, int pageSize = 10, string searchTerm = "")
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-        var results = await _decisionServices.GetDecisionsAsync(userId, page, pageSize);
+        var results = await _decisionServices.GetDecisionsAsync(userId, page, pageSize, searchTerm);
         return results.ToIActionResult(this);
     }
     [HttpGet("{decisionId}")]

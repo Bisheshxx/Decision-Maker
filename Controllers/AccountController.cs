@@ -106,9 +106,8 @@ namespace DecisionMaker.Controllers
             var result = await _authService.HandleGoogleLoginAsync(Response);
             if (!result.Success)
                 return BadRequest(result.Message);
-
             CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
-            return Redirect(result.Data.RedirectUrl ?? "/");
+            return Redirect(result.Data.RedirectUrl!);
         }
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProfile(string id)
