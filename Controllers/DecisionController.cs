@@ -41,7 +41,7 @@ public class DecisionController : BaseApiController
         var results = await _decisionServices.GetDecisionsAsync(userId, page, pageSize, searchTerm);
         return results.ToIActionResult(this);
     }
-    [HttpGet("{decisionId}")]
+    [HttpGet("/api/decision/{decisionId}")]
     public async Task<IActionResult> GetByIdAsync(int decisionId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -49,7 +49,7 @@ public class DecisionController : BaseApiController
         return results.ToIActionResult(this);
     }
 
-    [HttpDelete("{decisionId}")]
+    [HttpDelete("/api/decision/{decisionId}")]
     public async Task<IActionResult> DeleteAsync(int decisionId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -58,19 +58,19 @@ public class DecisionController : BaseApiController
 
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateAsync(int id, CreateDecisionDto updateDecisionDto)
+    [HttpPut("/api/decision/{decisionId}")]
+    public async Task<IActionResult> UpdateAsync(int decisionId, CreateDecisionDto updateDecisionDto)
     {
         if (!ModelState.IsValid)
         {
             return ValidationErrorResponse<CreateDecisionDto>();
         }
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-        var results = await _decisionServices.UpdateDecisionAsync(userId, id, updateDecisionDto);
+        var results = await _decisionServices.UpdateDecisionAsync(userId, decisionId, updateDecisionDto);
         return results.ToIActionResult(this);
     }
 
-    [HttpPost("{id}/decision-item")]
+    [HttpPost("/api/decision/{id}/decision-item")]
     public async Task<IActionResult> PostDecisionItemsAsync(CreateDecisionItemDto createDecisionItemDto, int id)
     {
         if (!ModelState.IsValid)
@@ -82,14 +82,14 @@ public class DecisionController : BaseApiController
         return result.ToIActionResult(this);
     }
 
-    [HttpPut("{id}/decision-item/{itemId}")]
+    [HttpPut("/api/decision/{id}/decision-item/{itemId}")]
     public async Task<IActionResult> UpdateDecisionItemAsync(UpdateDecisionItemDto updateDecisionItemDto, int id, int itemId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var result = await _decisionServices.UpdateDecisionItemAsync(updateDecisionItemDto, userId, id, itemId);
         return result.ToIActionResult(this);
     }
-    [HttpDelete("{id}/decision-item/{itemId}")]
+    [HttpDelete("/api/decision/{id}/decision-item/{itemId}")]
     public async Task<IActionResult> DeleteDecisionItemAsync(int id, int itemId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
