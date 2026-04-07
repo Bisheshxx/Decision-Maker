@@ -306,7 +306,7 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", () => Results.Ok("API is running")).AllowAnonymous();
+app.MapGet("/api/health", () => Results.Ok($"API is running at {DateTime.UtcNow}....")).AllowAnonymous();
 app.MapControllers();
 
 app.Run();
