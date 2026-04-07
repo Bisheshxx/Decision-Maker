@@ -306,7 +306,47 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", () => Results.Ok($"API is running at {DateTime.UtcNow}....")).AllowAnonymous();
+app.MapGet("/api/health", (HttpContext context) =>
+{
+    var utcNow = DateTimeOffset.UtcNow;
+    var requestedTimeZone = context.Request.Headers["X-Timezone"].FirstOrDefault();
+
+    var timeZone = TimeZoneInfo.Utc;
+    var timeZoneSource = "utc-fallback";
+
+    if (!string.IsNullOrWhiteSpace(requestedTimeZone))
+    {
+        try
+        {
+            timeZone = TimeZoneInfo.FindSystemTimeZoneById(requestedTimeZone);
+            timeZoneSource = "request-header";
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            timeZoneSource = "invalid-request-header";
+        }
+        catch (InvalidTimeZoneException)
+        {
+            timeZoneSource = "invalid-request-header";
+        }
+    }
+
+    var localNow = TimeZoneInfo.ConvertTime(utcNow, timeZone);
+    var region =
+        context.Request.Headers["X-Azure-Region"].FirstOrDefault()
+        ?? Environment.GetEnvironmentVariable("WEBSITE_REGION")
+        ?? "unknown";
+
+    return Results.Ok(new
+    {
+        status = "API is running",
+        utcNow,
+        localNow,
+        timeZone = timeZone.Id,
+        region,
+        timeZoneSource
+    });
+}).AllowAnonymous();
 app.MapControllers();
 
 app.Run();
