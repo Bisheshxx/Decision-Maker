@@ -126,11 +126,10 @@ public class DecisionServices : IDecisionService
             Description = d.Description,
             CreatedAt = d.CreatedAt,
             UpdatedAt = d.UpdatedAt,
-            DecisionItems = d.DecisionItems.Select(di => new PostDecisionItemResponseDto
+            DecisionItems = d.DecisionItems.Select(di => new DecisionItemResponseDto
             {
                 Title = di.Title,
                 Id = di.Id,
-                DecisionId = di.DecisionId
             }).ToList()
         }).FirstOrDefaultAsync();
 
@@ -139,6 +138,32 @@ public class DecisionServices : IDecisionService
             return ApiResponse<DecisionListResponseDto>.Fail("Decision not Found", ErrorType.NotFound);
         }
         return ApiResponse<DecisionListResponseDto>.Ok(decision, "Successfully Fetched Decision");
+    }
+    public async Task<ApiResponse<List<DecisionItemResponseDto>>> GetDecisionItemAsync(string userId, int id)
+    {
+        if (userId == null)
+        {
+            ApiResponse<List<DecisionItemResponseDto>>.Fail("You need to Login", ErrorType.Unauthorized);
+        }
+        // var decisionItem = _context.DecisionItem.Where(d => d.CreatedById == userId && d.DecisionId == id).Select(d => new DecisionItemResponseDto
+        // {
+        //     Id = d.Id,
+        //     Title = d.Title
+        // }).ToListAsync();
+        var decisionItems = await _context.DecisionItem
+       .Where(d => d.CreatedById == userId && d.DecisionId == id)
+       .Select(d => new DecisionItemResponseDto
+       {
+           Id = d.Id,
+           Title = d.Title
+       })
+       .ToListAsync();
+        return ApiResponse<List<DecisionItemResponseDto>>.Ok(
+      decisionItems,
+      "Successfully fetched decision items"
+  );
+
+
     }
     public async Task<ApiResponse<PostDecisionItemResponseDto>> PostDecisionItemAsync(CreateDecisionItemDto createDecisionItemDto, string userId, int decisionId)
     {
@@ -160,6 +185,39 @@ public class DecisionServices : IDecisionService
 
         return ApiResponse<PostDecisionItemResponseDto>.Ok(postDecisionItemResponseDto, "Successfully created a decision item.");
     }
+    public async Task<ApiResponse<object>> UpsertDecisionItemAsync(List<UpsertDecisionItemDto> upsertDecisionItemDto, string userId, int id)
+    {
+        var existingDecisionItems = await _context.DecisionItem.Where(d => id == d.DecisionId).ToListAsync();
+
+        var incomingIds = upsertDecisionItemDto.Select(d => d.Id).ToList();
+
+        var toDelete = existingDecisionItems.Where(d => !incomingIds.Contains(d.Id));
+        _context.DecisionItem.RemoveRange(toDelete);
+        foreach (var item in upsertDecisionItemDto)
+        {
+            if (item.Id == 0)
+            {
+                _context.DecisionItem.Add(new DecisionItem
+                {
+                    DecisionId = id,
+                    Title = item.Title,
+                    CreatedById = userId
+                });
+            }
+            else
+            {
+                var existing = existingDecisionItems.FirstOrDefault(d => d.Id == item.Id);
+                if (existing != null)
+                {
+                    existing.Title = item.Title;
+                }
+            }
+        }
+        await _context.SaveChangesAsync();
+        return ApiResponse<object>.Ok(null, "Updated Successfully!");
+    }
+
+
     public async Task<ApiResponse<object>> UpdateDecisionItemAsync(UpdateDecisionItemDto updateDecisionItemDto, string userId, int decisionId, int decisionItemId)
     {
 

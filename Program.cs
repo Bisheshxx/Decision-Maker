@@ -54,7 +54,8 @@ builder.Services.ConfigureApplicationCookie(options =>
         if (context.Request.Path.StartsWithSegments("/api"))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
+            var response = ApiResponse<object>.Fail("Unauthorized - Invalid or missing token", ErrorType.Unauthorized);
+            return context.Response.WriteAsJsonAsync(response);
         }
         // Redirect non-API requests normally
         context.Response.Redirect(context.RedirectUri);
@@ -67,7 +68,8 @@ builder.Services.ConfigureApplicationCookie(options =>
         if (context.Request.Path.StartsWithSegments("/api"))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return Task.CompletedTask;
+            var response = ApiResponse<object>.Fail("Forbidden", ErrorType.Forbidden);
+            return context.Response.WriteAsJsonAsync(response);
         }
         // Redirect non-API requests normally
         context.Response.Redirect(context.RedirectUri);
@@ -145,14 +147,16 @@ builder.Services.AddAuthentication(options =>
                         context.NoResult();
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         context.Response.ContentType = "application/json";
-                        await context.Response.WriteAsJsonAsync(new { error = "Token expired, refreshed - please retry", tokenRefreshed = true });
+                        var response = ApiResponse<object>.Fail("Token expired, refreshed - please retry", ErrorType.Unauthorized);
+                        await context.Response.WriteAsJsonAsync(response);
                         return;
                     }
                 }
                 context.NoResult();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsJsonAsync(new { error = $"Unauthorized: {context.Exception.Message}" });
+                var unauthorizedResponse = ApiResponse<object>.Fail($"Unauthorized: {context.Exception.Message}", ErrorType.Unauthorized);
+                await context.Response.WriteAsJsonAsync(unauthorizedResponse);
             },
             OnChallenge = context =>
             {
@@ -160,7 +164,15 @@ builder.Services.AddAuthentication(options =>
                 context.HandleResponse();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json";
-                return context.Response.WriteAsJsonAsync(new { error = "Unauthorized - Invalid or missing token" });
+                var response = ApiResponse<object>.Fail("Unauthorized - Invalid or missing token", ErrorType.Unauthorized);
+                return context.Response.WriteAsJsonAsync(response);
+            },
+            OnForbidden = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+                var response = ApiResponse<object>.Fail("Forbidden", ErrorType.Forbidden);
+                return context.Response.WriteAsJsonAsync(response);
             }
         };
 

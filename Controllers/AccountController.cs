@@ -32,6 +32,8 @@ namespace DecisionMaker.Controllers
             _authService = authService;
         }
         [HttpPost("login")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
             if (!ModelState.IsValid)
@@ -126,8 +128,24 @@ namespace DecisionMaker.Controllers
         [HttpPut]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto updateUserDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return ValidationErrorResponse<LoginResponseDto>();
+            }
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
             var result = await _authService.UpdateProfile(userId, updateUserDto);
+            return result.ToIActionResult(this);
+        }
+
+        [HttpPut("password")]
+        public async Task<IActionResult> UpdatePassword(PasswordUpdateDto passwordUpdateDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationErrorResponse<PasswordUpdateDto>();
+            }
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var result = await _authService.UpdatePasswordAsync(passwordUpdateDto, userId);
             return result.ToIActionResult(this);
         }
     }

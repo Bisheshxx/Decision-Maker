@@ -22,14 +22,16 @@ public class AuthServices : IAuthService
     private readonly SignInManager<AppUser> _signinManager;
     private readonly IEmailSender _emailSender;
     private readonly AppSettings _appSettings;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
-    public AuthServices(UserManager<AppUser> userManager, ITokenService tokenService, SignInManager<AppUser> signInManager, IEmailSender emailSender, IOptions<AppSettings> appSettings)
+    public AuthServices(UserManager<AppUser> userManager, ITokenService tokenService, SignInManager<AppUser> signInManager, IEmailSender emailSender, IOptions<AppSettings> appSettings, IWebHostEnvironment webHostEnvironment)
     {
         _userManager = userManager;
         _tokenService = tokenService;
         _signinManager = signInManager;
         _emailSender = emailSender;
         _appSettings = appSettings.Value;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     public async Task<ApiResponse<NewUserDto>> LoginAsync(LoginDto loginDto)
@@ -95,8 +97,9 @@ public class AuthServices : IAuthService
         }
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         var link = $"{_appSettings.FrontendUrl}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+        var emailBody = await BuildConfirmEmailHtmlAsync(link);
 
-        await _emailSender.SendEmailAsync(user.Email!, "Confirm Email", $"Click <a href='{link}'>here</a> to confirm email");
+        await _emailSender.SendEmailAsync(user.Email!, "Confirm Email", emailBody);
         return ApiResponse<object>.Ok(null, "Confirmation Email has been sent!");
     }
 
@@ -244,25 +247,27 @@ public class AuthServices : IAuthService
         };
         return ApiResponse<NewUserDto>.Ok(res, "Login Successful!");
     }
-    public async Task<ApiResponse<UserDto>> GetProfileAsync(string id)
+    public async Task<ApiResponse<AccountDetailsDto>> GetProfileAsync(string id)
     {
         if (id == null)
         {
-            return ApiResponse<UserDto>.Fail("User not authenticated", ErrorType.Unauthorized);
+            return ApiResponse<AccountDetailsDto>.Fail("User not authenticated", ErrorType.Unauthorized);
         }
         var user = await _userManager.FindByIdAsync(id);
         if (user == null)
         {
-            return ApiResponse<UserDto>.Fail("User does not exist", ErrorType.NotFound);
+            return ApiResponse<AccountDetailsDto>.Fail("User does not exist", ErrorType.NotFound);
         }
-        var userData = new UserDto
+        bool hasLocalPassword = await _userManager.HasPasswordAsync(user);
+        var userData = new AccountDetailsDto
         {
             Id = user.Id,
             Name = user.Name ?? string.Empty,
             Email = user.Email ?? string.Empty,
-            ProfilePictureUrl = user.ProfilePictureUrl
+            ProfilePictureUrl = user.ProfilePictureUrl,
+            IsOAuth = !hasLocalPassword
         };
-        return ApiResponse<UserDto>.Ok(userData, "Fetched User Data Successfully");
+        return ApiResponse<AccountDetailsDto>.Ok(userData, "Fetched User Data Successfully");
 
     }
     public async Task<ApiResponse<UserDto>> UpdateProfile(string id, UpdateUserDto updateUserDto)
@@ -319,5 +324,45 @@ public class AuthServices : IAuthService
 
         return ApiResponse<UserDto>.Ok(userDto, "Profile updated successfully");
     }
+
+    public async Task<ApiResponse<object>> UpdatePasswordAsync(PasswordUpdateDto passwordUpdateDto, string id)
+    {
+        if (id == null)
+        {
+            return ApiResponse<object>.Fail("User unauthorized", ErrorType.Unauthorized);
+        }
+
+        var user = await _userManager.FindByIdAsync(id);
+
+        if (user == null)
+        {
+            return ApiResponse<object>.Fail("User unauthorized", ErrorType.Unauthorized);
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, passwordUpdateDto.OldPassword, passwordUpdateDto.NewPassword);
+
+        if (!result.Succeeded)
+        {
+            return ApiResponse<object>.Fail(result.Errors.Select(e => e.Description), ErrorType.Validation, "Password update failed");
+        }
+
+        await _signinManager.RefreshSignInAsync(user);
+        return ApiResponse<object>.Ok(null, "Successfully changed the Password");
+
+    }
+
+    private async Task<string> BuildConfirmEmailHtmlAsync(string link)
+    {
+        var templatePath = Path.Combine(_webHostEnvironment.ContentRootPath, "Templates", "Emails", "ConfirmEmail.html");
+
+        if (!File.Exists(templatePath))
+        {
+            return $"Click <a href='{link}'>here</a> to confirm email";
+        }
+
+        var template = await File.ReadAllTextAsync(templatePath);
+        return template.Replace("{{CONFIRM_LINK}}", link);
+    }
+
 
 }

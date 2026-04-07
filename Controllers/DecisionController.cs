@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using DecisionMaker.Dtos.Decision;
 using DecisionMaker.Dtos.DecisionItem;
@@ -70,6 +71,15 @@ public class DecisionController : BaseApiController
         return results.ToIActionResult(this);
     }
 
+    [HttpGet("/api/decision/{id}/decision-items")]
+    public async Task<IActionResult> GetDecisionAsync(int id)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var results = await _decisionServices.GetDecisionItemAsync(userId, id);
+        return results.ToIActionResult(this);
+
+    }
+
     [HttpPost("/api/decision/{id}/decision-item")]
     public async Task<IActionResult> PostDecisionItemsAsync(CreateDecisionItemDto createDecisionItemDto, int id)
     {
@@ -79,6 +89,20 @@ public class DecisionController : BaseApiController
         }
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         var result = await _decisionServices.PostDecisionItemAsync(createDecisionItemDto, userId, id);
+        return result.ToIActionResult(this);
+    }
+
+
+    [HttpPut("/api/decision/{id}/decision-items")]
+    public async Task<IActionResult> UpsertMultipleDecisionItemsAsync([FromBody] List<UpsertDecisionItemDto> upsertDecisionItemDto, int id)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationErrorResponse<CreateDecisionDto>();
+        }
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var result = await _decisionServices.UpsertDecisionItemAsync(upsertDecisionItemDto, userId, id);
+        // var result = await _decisionServices.PostDecisionItemAsync(createDecisionItemDto, userId, id);
         return result.ToIActionResult(this);
     }
 

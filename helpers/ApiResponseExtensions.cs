@@ -19,7 +19,7 @@ public static class ApiResponseExtension
             ErrorType.Unauthorized => controller.Unauthorized(response),
             ErrorType.NotFound => controller.NotFound(response),
             ErrorType.Conflict => controller.Conflict(response),
-            ErrorType.Forbidden => controller.Forbid(),
+            ErrorType.Forbidden => controller.StatusCode(StatusCodes.Status403Forbidden, response),
             _ => controller.StatusCode(500, response)
         };
     }

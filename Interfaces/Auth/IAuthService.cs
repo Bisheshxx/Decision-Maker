@@ -16,8 +16,10 @@ public interface IAuthService
     AuthenticationProperties ConfigureGoogleLogin(string redirectUrl);
 
     Task<ApiResponse<NewUserDto>> HandleGoogleLoginAsync(HttpResponse response);
-    Task<ApiResponse<UserDto>> GetProfileAsync(string id);
+    Task<ApiResponse<AccountDetailsDto>> GetProfileAsync(string id);
     Task<ApiResponse<UserDto>> UpdateProfile(string id, UpdateUserDto updateUserDto);
+
+    Task<ApiResponse<object>> UpdatePasswordAsync(PasswordUpdateDto passwordUpdateDto, string id);
 
 
 }
