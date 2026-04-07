@@ -5,6 +5,10 @@ out/
 publish/
 TestResults/
 
+# .NET publish folder
+publish/
+publish.zip
+
 # IDE
 .vs/
 .vscode/
