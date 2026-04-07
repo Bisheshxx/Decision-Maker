@@ -6,6 +6,9 @@
     <UserSecretsId>8126a611-deed-4a99-81da-e98eb7f909e6</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+  <None Update="appsettings.Development.json">
+    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+  </None>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.9" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
