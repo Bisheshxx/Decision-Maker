@@ -78,8 +78,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddScoped<ITokenService, TokenService>();
-var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+var frontendURL = builder.Configuration["AppSettings:FrontendUrl"];
 
 builder.Services.AddAuthentication(options =>
 {
@@ -215,7 +214,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.WithOrigins("http://localhost:3000")
+            policy.WithOrigins(frontendURL!)
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
