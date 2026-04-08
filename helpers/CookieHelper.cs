@@ -5,6 +5,11 @@ namespace DecisionMaker.Helpers;
 
 public static class CookieHelper
 {
+    private static SameSiteMode GetSameSiteMode(bool is_production)
+    {
+        return is_production ? SameSiteMode.None : SameSiteMode.Lax;
+    }
+
     public static void SetAuthCookies(HttpResponse response, string access_token, string refresh_token, bool is_production = false)
     {
         SetAccessTokenCookie(response, access_token, is_production);
@@ -17,7 +22,7 @@ public static class CookieHelper
         {
             HttpOnly = true,
             Secure = is_production,
-            SameSite = SameSiteMode.Lax,
+            SameSite = GetSameSiteMode(is_production),
             Path = "/",
             Expires = DateTime.UtcNow.AddMinutes(15)
         };
@@ -30,7 +35,7 @@ public static class CookieHelper
         {
             HttpOnly = true,
             Secure = is_production,
-            SameSite = SameSiteMode.Lax,
+            SameSite = GetSameSiteMode(is_production),
             Path = "/",
             Expires = DateTime.UtcNow.AddDays(-1)
         };
@@ -42,7 +47,7 @@ public static class CookieHelper
         {
             HttpOnly = true,
             Secure = is_production,
-            SameSite = SameSiteMode.Lax,
+            SameSite = GetSameSiteMode(is_production),
             Path = "/",
             Expires = DateTime.UtcNow.AddDays(-1)
         };
@@ -55,15 +60,15 @@ public static class CookieHelper
         {
             HttpOnly = true,
             Secure = is_production,
-            SameSite = SameSiteMode.Lax,
+            SameSite = GetSameSiteMode(is_production),
             Path = "/",
             Expires = DateTime.UtcNow.AddDays(7)
         };
         response.Cookies.Append("refresh_token", refresh_token, refresh_options);
     }
-    public static void RemoveAuthCookies(HttpResponse response)
+    public static void RemoveAuthCookies(HttpResponse response, bool is_production = false)
     {
-        RemoveAccessTokenCookie(response);
-        RemoveRefreshTokenCookie(response);
+        RemoveAccessTokenCookie(response, is_production);
+        RemoveRefreshTokenCookie(response, is_production);
     }
 }

@@ -25,11 +25,12 @@ namespace DecisionMaker.Controllers
     public class AccountController : BaseApiController
     {
         private readonly IAuthService _authService;
+        private readonly IWebHostEnvironment _environment;
 
-
-        public AccountController(IAuthService authService)
+        public AccountController(IAuthService authService, IWebHostEnvironment environment)
         {
             _authService = authService;
+            _environment = environment;
         }
         [HttpPost("login")]
         [Produces("application/json")]
@@ -44,7 +45,7 @@ namespace DecisionMaker.Controllers
             var result = await _authService.LoginAsync(loginDto);
             if (result.Success)
             {
-                CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
+                CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!, _environment.IsProduction());
                 return Ok(ApiResponse<UserDto>.Ok(new UserDto
                 {
                     Id = result.Data.User.Id,
@@ -88,7 +89,7 @@ namespace DecisionMaker.Controllers
             var result = await _authService.LogoutAsync(refresh_token!);
             if (result.Success)
             {
-                CookieHelper.RemoveAuthCookies(Response);
+                CookieHelper.RemoveAuthCookies(Response, _environment.IsProduction());
             }
             return result.ToIActionResult(this);
         }
@@ -108,7 +109,7 @@ namespace DecisionMaker.Controllers
             var result = await _authService.HandleGoogleLoginAsync(Response);
             if (!result.Success)
                 return BadRequest(result.Message);
-            CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!);
+            CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!, _environment.IsProduction());
             return Redirect(result.Data.RedirectUrl!);
         }
         [HttpGet("{id}")]

@@ -23,7 +23,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-
+var isProduction = builder.Environment.IsProduction();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -111,8 +111,8 @@ builder.Services.AddAuthentication(options =>
                         if (refreshResult.Success && refreshResult.Data != null)
                         {
                             // Set new cookies
-                            CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!);
-                            CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!);
+                            CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!, isProduction);
+                            CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!, isProduction);
 
                             // Use the new token for this request
                             context.Token = refreshResult.Data.Token;
@@ -139,8 +139,8 @@ builder.Services.AddAuthentication(options =>
                         Console.WriteLine("Token refreshed successfully, setting new cookies");
 
                         // Set new cookies for next request
-                        CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!);
-                        CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!);
+                        CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!, isProduction);
+                        CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!, isProduction);
 
                         // Can't fix current request, but cookies are set for next request
                         context.NoResult();
