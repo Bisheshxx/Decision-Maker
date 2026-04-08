@@ -20,6 +20,7 @@ publish.zip
 
 # Secrets / config
 appsettings.Development.json
+appsettings.Production.json
 appsettings.Local.json
 secrets.json
 *.env
