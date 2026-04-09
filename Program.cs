@@ -87,6 +87,9 @@ builder.Services.AddAuthentication(options =>
             {
 
                 var token = context.Request.Cookies["access_token"];
+                var refresh_token = context.Request.Cookies["refresh_token"];
+
+
                 if (!string.IsNullOrEmpty(token))
                 {
                     context.Token = token;

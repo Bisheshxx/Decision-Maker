@@ -11,6 +11,7 @@ using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.CodeAnalysis.Options;
@@ -125,6 +126,7 @@ namespace DecisionMaker.Controllers
             return Redirect(result.Data.RedirectUrl!);
         }
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> GetProfile(string id)
         {
             var userId = id ?? User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -132,6 +134,7 @@ namespace DecisionMaker.Controllers
             return result.ToIActionResult(this);
         }
         [HttpGet("profile")]
+        [Authorize]
         public async Task<IActionResult> GetMyProfile()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -139,6 +142,7 @@ namespace DecisionMaker.Controllers
             return result.ToIActionResult(this);
         }
         [HttpPut]
+        [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto updateUserDto)
         {
             if (!ModelState.IsValid)
@@ -151,6 +155,7 @@ namespace DecisionMaker.Controllers
         }
 
         [HttpPut("password")]
+        [Authorize]
         public async Task<IActionResult> UpdatePassword(PasswordUpdateDto passwordUpdateDto)
         {
             if (!ModelState.IsValid)

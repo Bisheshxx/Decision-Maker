@@ -189,7 +189,7 @@ public class AuthServices : IAuthService
         var user = await _userManager.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(r => r.RefreshTokens.Any(t => t.Token == refresh_token));
         if (user == null)
         {
-            return ApiResponse<object>.Fail("You are already logged out", ErrorType.Unauthorized);
+            return ApiResponse<object>.Fail("You are already logged out new refresh token", ErrorType.Unauthorized);
         }
         var tokenToRemove = user.RefreshTokens.SingleOrDefault(t => t.Token == refresh_token);
         if (tokenToRemove != null)
@@ -241,6 +241,8 @@ public class AuthServices : IAuthService
             Expires = DateTime.UtcNow.AddDays(7),
             UserId = user.Id
         };
+        user.RefreshTokens.Add(RefreshTokenGenerated);
+        await _userManager.UpdateAsync(user);
         var res = new NewUserDto
         {
             User = new UserDto
