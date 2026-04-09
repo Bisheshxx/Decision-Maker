@@ -69,9 +69,21 @@ namespace DecisionMaker.Controllers
         }
 
         [HttpPost("Refresh")]
-        public async Task<IActionResult> Refresh(RefreshDto refreshDto)
+        public async Task<IActionResult> Refresh()
         {
-            var result = await _authService.RefreshAsync(refreshDto);
+            var refreshToken = Request.Cookies["refresh_token"];
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return Unauthorized(ApiResponse<NewUserDto>.Fail("Refresh token is missing", ErrorType.Unauthorized));
+            }
+
+            var result = await _authService.RefreshAsync(refreshToken);
+            if (result.Success && result.Data != null)
+            {
+                CookieHelper.SetAccessTokenCookie(Response, result.Data.Token!, _environment.IsProduction());
+                CookieHelper.SetRefreshTokenCookie(Response, result.Data.RefreshToken!, _environment.IsProduction());
+            }
+
             return result.ToIActionResult(this);
         }
 

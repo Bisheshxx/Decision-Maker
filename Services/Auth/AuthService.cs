@@ -2,6 +2,7 @@ using System.Security.Claims;
 using DecisionMaker.Account.LoginDto;
 using DecisionMaker.Dtos.Account;
 using DecisionMaker.Dtos.Response;
+using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces;
 using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Models;
@@ -103,23 +104,28 @@ public class AuthServices : IAuthService
         return ApiResponse<object>.Ok(null, "Confirmation Email has been sent!");
     }
 
-    public async Task<ApiResponse<NewUserDto>> RefreshAsync(RefreshDto refreshDto)
+
+    public async Task<ApiResponse<NewUserDto>> RefreshAsync(string? refreshToken)
     {
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return ApiResponse<NewUserDto>.Fail("Refresh token is missing", ErrorType.Unauthorized);
+        }
         var user = await _userManager.Users.Include(u => u.RefreshTokens)
-                .FirstOrDefaultAsync(u => u.RefreshTokens.Any(t => t.Token == refreshDto.RefreshToken));
+                .FirstOrDefaultAsync(u => u.RefreshTokens.Any(t => t.Token == refreshToken));
         if (user == null)
         {
-            return ApiResponse<NewUserDto>.Fail("Invalid Refresh Token", ErrorType.Unauthorized);
+            return ApiResponse<NewUserDto>.Fail($"Invalid Refresh Token user null for {refreshToken}", ErrorType.Unauthorized);
         }
-        var storeRefreshToken = user.RefreshTokens.SingleOrDefault(t => t.Token == refreshDto.RefreshToken);
+        var storeRefreshToken = user.RefreshTokens.SingleOrDefault(t => t.Token == refreshToken);
 
         if (storeRefreshToken == null)
         {
-            return ApiResponse<NewUserDto>.Fail("Invalid Refresh Token", ErrorType.Unauthorized);
+            return ApiResponse<NewUserDto>.Fail("Invalid Refresh Token storeRefreshToken", ErrorType.Unauthorized);
         }
         if (storeRefreshToken.IsExpired)
         {
-            return ApiResponse<NewUserDto>.Fail("Refresh Token is Expired", ErrorType.Unauthorized);
+            return ApiResponse<NewUserDto>.Fail("Refresh Token is Expired storeRefreshToken.IsExpired", ErrorType.Unauthorized);
 
         }
         user.RefreshTokens.Remove(storeRefreshToken);
@@ -131,6 +137,8 @@ public class AuthServices : IAuthService
         };
         user.RefreshTokens.Add(newRefreshToken);
         await _userManager.UpdateAsync(user);
+
+
 
         var newAccessToken = _tokenService.CreateToken(user);
         var response = new NewUserDto
@@ -144,6 +152,7 @@ public class AuthServices : IAuthService
             Token = newAccessToken,
             RefreshToken = newRefreshToken.Token
         };
+
         return ApiResponse<NewUserDto>.Ok(response, "Success");
     }
 
