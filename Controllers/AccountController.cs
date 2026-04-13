@@ -7,16 +7,11 @@ using DecisionMaker.Helpers;
 using DecisionMaker.Interfaces;
 using DecisionMaker.Interfaces.Auth;
 using DecisionMaker.Models;
-using DecisionMaker.Settings;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.Options;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 
 namespace DecisionMaker.Controllers
@@ -26,16 +21,14 @@ namespace DecisionMaker.Controllers
     public class AccountController : BaseApiController
     {
         private readonly IAuthService _authService;
-        private readonly IWebHostEnvironment _environment;
 
-        public AccountController(IAuthService authService, IWebHostEnvironment environment)
+        public AccountController(IAuthService authService)
         {
             _authService = authService;
-            _environment = environment;
         }
         [HttpPost("login")]
         [Produces("application/json")]
-        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<NewUserDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
             if (!ModelState.IsValid)
@@ -44,21 +37,11 @@ namespace DecisionMaker.Controllers
             }
 
             var result = await _authService.LoginAsync(loginDto);
-            if (result.Success)
-            {
-                CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!, _environment.IsProduction());
-                return Ok(ApiResponse<UserDto>.Ok(new UserDto
-                {
-                    Id = result.Data.User.Id,
-                    Name = result.Data.User.Name,
-                    Email = result.Data.User.Email,
-                    ProfilePictureUrl = result.Data.User.ProfilePictureUrl,
-                }, "Login Successful!"));
-            }
             return result.ToIActionResult(this);
         }
 
         [HttpPost("register")]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         public async Task<IActionResult> Register(RegisterDto registerDto)
         {
             if (!ModelState.IsValid)
@@ -69,26 +52,20 @@ namespace DecisionMaker.Controllers
             return result.ToIActionResult(this);
         }
 
-        [HttpPost("Refresh")]
-        public async Task<IActionResult> Refresh()
+        [HttpPost("refresh")]
+        [ProducesResponseType(typeof(ApiResponse<NewUserDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Refresh([FromBody] RefreshDto refreshDto)
         {
-            var refreshToken = Request.Cookies["refresh_token"];
-            if (string.IsNullOrEmpty(refreshToken))
+            if (!ModelState.IsValid)
             {
-                return Unauthorized(ApiResponse<NewUserDto>.Fail("Refresh token is missing", ErrorType.Unauthorized));
+                return ValidationErrorResponse<RefreshDto>();
             }
-
-            var result = await _authService.RefreshAsync(refreshToken);
-            if (result.Success && result.Data != null)
-            {
-                CookieHelper.SetAccessTokenCookie(Response, result.Data.Token!, _environment.IsProduction());
-                CookieHelper.SetRefreshTokenCookie(Response, result.Data.RefreshToken!, _environment.IsProduction());
-            }
-
+            var result = await _authService.RefreshAsync(refreshDto.RefreshToken!);
             return result.ToIActionResult(this);
         }
 
         [HttpPost("confirm-email")]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
         {
             var result = await _authService.ConfirmEmailAsync(userId, token);
@@ -96,14 +73,10 @@ namespace DecisionMaker.Controllers
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Logout([FromBody] RefreshDto refreshDto)
         {
-            var refresh_token = Request.Cookies["refresh_token"];
-            var result = await _authService.LogoutAsync(refresh_token!);
-            if (result.Success)
-            {
-                CookieHelper.RemoveAuthCookies(Response, _environment.IsProduction());
-            }
+            var result = await _authService.LogoutAsync(refreshDto.RefreshToken!);
             return result.ToIActionResult(this);
         }
 
@@ -117,16 +90,35 @@ namespace DecisionMaker.Controllers
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
         [HttpGet("google-response")]
+        [ProducesResponseType(typeof(ApiResponse<NewUserDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GoogleResponse()
         {
             var result = await _authService.HandleGoogleLoginAsync(Response);
             if (!result.Success)
                 return BadRequest(result.Message);
-            CookieHelper.SetAuthCookies(Response, result.Data!.Token!, result.Data.RefreshToken!, _environment.IsProduction());
-            return Redirect(result.Data.RedirectUrl!);
+
+            var redirectUrl = result.Data!.RedirectUrl ?? "/";
+            var redirectWithTokens = BuildRedirectUrlWithTokens(
+                redirectUrl,
+                result.Data.Token,
+                result.Data.RefreshToken);
+
+            return Redirect(redirectWithTokens);
+        }
+
+        private static string BuildRedirectUrlWithTokens(string baseUrl, string? token, string? refreshToken)
+        {
+            var encodedToken = Uri.EscapeDataString(token ?? string.Empty);
+            var encodedRefreshToken = Uri.EscapeDataString(refreshToken ?? string.Empty);
+            var fragment = $"accessToken={encodedToken}&refreshToken={encodedRefreshToken}";
+
+            return baseUrl.Contains('#')
+                ? $"{baseUrl}&{fragment}"
+                : $"{baseUrl}#{fragment}";
         }
         [HttpGet("{id}")]
         [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<AccountDetailsDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetProfile(string id)
         {
             var userId = id ?? User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -135,6 +127,7 @@ namespace DecisionMaker.Controllers
         }
         [HttpGet("profile")]
         [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<AccountDetailsDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyProfile()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -143,6 +136,7 @@ namespace DecisionMaker.Controllers
         }
         [HttpPut]
         [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto updateUserDto)
         {
             if (!ModelState.IsValid)
@@ -156,6 +150,7 @@ namespace DecisionMaker.Controllers
 
         [HttpPut("password")]
         [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdatePassword(PasswordUpdateDto passwordUpdateDto)
         {
             if (!ModelState.IsValid)

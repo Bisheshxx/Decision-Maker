@@ -21,7 +21,6 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-var isProduction = builder.Environment.IsProduction();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -83,68 +82,6 @@ builder.Services.AddAuthentication(options =>
     {
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = async context =>
-            {
-
-                var token = context.Request.Cookies["access_token"];
-                var refresh_token = context.Request.Cookies["refresh_token"];
-
-
-                if (!string.IsNullOrEmpty(token))
-                {
-                    context.Token = token;
-                    // Console.WriteLine($"Token received from cookie: {token.Substring(0, Math.Min(20, token.Length))}...");
-                }
-                else if (!context.Request.Path.StartsWithSegments("/api/accounts/Refresh"))
-                {
-                    var refreshToken = context.Request.Cookies["refresh_token"];
-                    if (!string.IsNullOrEmpty(refreshToken))
-                    {
-                        var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
-                        var refreshResult = await authService.RefreshAsync(refreshToken);
-
-                        if (refreshResult.Success && refreshResult.Data != null)
-                        {
-
-                            CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!, isProduction);
-                            CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!, isProduction);
-                            context.Token = refreshResult.Data.Token;
-                        }
-                        else
-                        {
-                            Console.WriteLine("Token refresh failed in OnMessageReceived");
-                        }
-                    }
-                }
-            },
-            OnAuthenticationFailed = async context =>
-            {
-                var refreshToken = context.Request.Cookies["refresh_token"];
-                if (!string.IsNullOrEmpty(refreshToken))
-                {
-                    var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
-
-                    var refreshResult = await authService.RefreshAsync(refreshToken);
-
-                    if (refreshResult.Success && refreshResult.Data != null)
-                    {
-                        // Console.WriteLine("Token refreshed successfully, setting new cookies");
-                        CookieHelper.SetAccessTokenCookie(context.Response, refreshResult.Data.Token!, isProduction);
-                        CookieHelper.SetRefreshTokenCookie(context.Response, refreshResult.Data.RefreshToken!, isProduction);
-                        context.NoResult();
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        context.Response.ContentType = "application/json";
-                        var response = ApiResponse<object>.Fail("Token expired, refreshed - please retry", ErrorType.Unauthorized);
-                        await context.Response.WriteAsJsonAsync(response);
-                        return;
-                    }
-                }
-                context.NoResult();
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.ContentType = "application/json";
-                var unauthorizedResponse = ApiResponse<object>.Fail($"Unauthorized: {context.Exception.Message}", ErrorType.Unauthorized);
-                await context.Response.WriteAsJsonAsync(unauthorizedResponse);
-            },
             OnChallenge = context =>
             {
                 context.HandleResponse();
@@ -217,10 +154,12 @@ builder.Services.AddSwaggerGen(options =>
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
     {
-        Name = "access_token",
-        Type = SecuritySchemeType.ApiKey,
-        In = ParameterLocation.Cookie,
-        Description = "Authentication via HttpOnly cookie"
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter only the JWT token. Swagger adds the Bearer prefix automatically."
     });
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
