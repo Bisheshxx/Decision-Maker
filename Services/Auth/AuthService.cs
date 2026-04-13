@@ -115,7 +115,7 @@ public class AuthServices : IAuthService
                 .FirstOrDefaultAsync(u => u.RefreshTokens.Any(t => t.Token == refreshToken));
         if (user == null)
         {
-            return ApiResponse<NewUserDto>.Fail($"Invalid Refresh Token user null for {refreshToken}", ErrorType.Unauthorized);
+            return ApiResponse<NewUserDto>.Fail($"Invalid Refresh Token user null", ErrorType.Unauthorized);
         }
         var storeRefreshToken = user.RefreshTokens.SingleOrDefault(t => t.Token == refreshToken);
 
