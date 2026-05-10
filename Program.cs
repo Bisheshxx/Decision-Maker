@@ -197,6 +197,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
         return new BadRequestObjectResult(response);
     };
 });
+builder.Services.AddHostedService<SupabaseKeepAliveService>();
 
 
 var app = builder.Build();
